@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nelson Data Analysis Tool</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/georaster"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> <!-- Add Plotly.js -->
+
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #controls {
+            padding: 10px;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        #map-container {
+            display: grid;
+            height: calc(100vh - 50px); /* Adjust based on the height of the control panel */
+            gap: 10px;
+        }
+
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            z-index: 1000;
+            display: flex;
+            gap: 5px;
+        }
+
+        .map {
+            flex: 1;
+            height: 100%;
+        }
+
+        .map-legend {
+            width: 100px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border: 1px solid #ddd;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Adjust layout based on the number of maps */
+        .one-map {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        .two-maps {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .three-maps {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            grid-auto-flow: dense;
+        }
+
+        .four-maps {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        
+    </style>
+</head>
+<body>
+    <!-- Global Control Panel -->
+    <div id="controls">
+        <select id="data-type">
+            <option value="Mean">Mean</option>
+            <option value="Median">Median</option>
+            <option value="Outer">Outer</option>
+            <option value="Precipitation">Precipitation</option>
+        </select>
+        <select id="hour-type">
+            <option value="1">1 Hour</option>
+            <option value="10">10 Hours</option>
+            <option value="100">100 Hours</option>
+        </select>
+        <input type="date" id="date-picker" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+        <button id="add-map">Add Map</button>
+        <button id="sync-dates">Sync Dates</button>
+    </div>
+    
+    <!-- This is the raster generation control panel -->
+
+    <div id="controls-container2">
+            
+        <button id="generateRaster">GenerateRaster</button>
+        <select id="FirstLayer"></select>
+        <input type="date" class="map-date-picker" data-map-id="map0" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+                <select class="map-hour-selector" data-map-id="map0">
+                    <!-- Hours will be populated dynamically -->
+                </select>
+        <select id="SecondLayer"></select>
+        <input type="date" class="map-date-picker" data-map-id="mapp" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+                <select class="map-hour-selector" data-map-id="mapp">
+                    <!-- Hours will be populated dynamically -->
+                </select>
+
+        
+    </div>
+
+     <!-- Plot Container for timeseries data  
+      This does not appear until a point on map is clicked-->
+     <div id="plot-container" style="display:none;" >
+        <button id="close-button">Close</button>
+        <div id="plot"></div>
+        <button id="adjust-y-axis">Adjust Y-Axis</button> <!-- New button to adjust y-axis -->
+        <button id="reset-y-axis">Reset Y-Axis</button> <!-- New button to reset y-axis -->
+    </div>
+
+    <!-- Place this template inside your HTML file -->
+<template id="map-template">
+    <div class="map-wrapper">
+        <div class="map-controls">
+            <select class="map-data-type" data-map-id="">
+                <option value="Mean">Mean</option>
+                <option value="Median">Median</option>
+                <option value="Outer">Outer</option>
+                <option value="Precipitation">Precipitation</option>
+            </select>
+            <select class="map-hour-type" data-map-id="">
+                <option value="1">1 Hour</option>
+                <option value="10">10 Hours</option>
+                <option value="100">100 Hours</option>
+            </select>
+            <input type="date" class="map-date-picker" data-map-id="" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+            <select class="map-hour-selector" data-map-id="">
+                <!-- Hours will be populated dynamically -->
+            </select>
+            <button class="prev-hour" data-map-id="">Previous Hour</button>
+            <button class="next-hour" data-map-id="">Next Hour</button>
+            <button class="update-map" data-map-id="">Update Map</button>
+            <button class="delete-map" data-map-id="">Delete Map</button>
+            <button class="viirs-overlay" data-map-id="">VIIRS</button>
+            <button class="modis-overlay" data-map-id="">MODIS</button>
+            <button class="fire-perimeters" data-map-id="">Fire Perimeters</button>
+
+        </div>
+        <div class="map" data-map-id=""></div>
+        <div class="map-legend">
+            <p>Legend</p>
+            <img src="" alt="Legend" class="legend-image">
+        </div>
+    </div>
+</template>
+
+
+    <!-- Individual Map Container -->
+    <div id="map-container" class="one-map">
+        <div class="map-wrapper" id="map-wrapper-1">
+            <div class="map-controls" id="controls-map1">
+                <select class="map-data-type" data-map-id="map1">
+                    <option value="Mean">Mean</option>
+                    <option value="Median">Median</option>
+                    <option value="Outer">Outer</option>
+                    <option value="Precipitation">Precipitation</option>
+                </select>
+                <select class="map-hour-type" data-map-id="map1">
+                    <option value="1">1 Hour</option>
+                    <option value="10">10 Hours</option>
+                    <option value="100">100 Hours</option>
+                </select>
+                <input type="date" class="map-date-picker" data-map-id="map1" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+                <select class="map-hour-selector" data-map-id="map1">
+                    <!-- Hours will be populated dynamically -->
+                </select>
+                <button class="prev-hour" data-map-id="map1">Previous Hour</button>
+                <button class="next-hour" data-map-id="map1">Next Hour</button>
+                <button class="update-map" data-map-id="map1">Update Map</button>
+                <button class="toggle-viirs-overlay" data-map-id="map1"> VIIRS</button> 
+                <button class="toggle-modis-overlay" data-map-id="map1"> MODIS</button> 
+                <button class="toggle-fire-perimeters" data-map-id="map1">Fire Perimeters</button>
+
+
+
+            </div>
+            <div id="map1" class="map"></div> <!-- Default map -->
+            <div class="map-legend" id="legend-map1">
+                <p>Legend</p>
+                <img src="" alt="Legend for map1" class="legend-image">
+            </div>
+        </div>
+    </div>
+    <script src="../static/js/scripts.js"></script>
+</body>
+</html>
