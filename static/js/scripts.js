@@ -44,11 +44,11 @@ function addLayer(map, layerType, date) {
         layerName = 'Nelson:Precipitation'; // No hour type for precipitation
     } 
     else if (layerType === 'ViirsData') {
-    layerName = 'Nelson:Viirs_data_real'; // Set the correct name for the GeoServer image mosaic
+    layerName = 'Nelson:VIIRS_FRP'; // Set the correct name for the GeoServer image mosaic
     }
     else {
         // Construct layer name with hour type for other layers
-        layerName = `Nelson:${layerType}_${document.querySelector(`.map-hour-type[data-map-id="${map._container.id}"]`).value}hr`;
+        layerName = `Nelson:${document.querySelector(`.map-hour-type[data-map-id="${map._container.id}"]`).value}hr_${layerType}`;
     }
     var wmsOptions = {
         format: 'image/png',
@@ -71,7 +71,7 @@ function addLayer(map, layerType, date) {
 function toggleOverlay(mapId, layerType) {
     const map = maps[mapId];
     const layers = layerType === 'VIIRS' ? viirsLayers : modisLayers;
-    const layerName = layerType === 'VIIRS' ? 'Nelson:Viirs_data_real' : 'Nelson:Modis_data';
+    const layerName = layerType === 'VIIRS' ? 'Nelson:VIIRS_FRP' : 'Nelson:MODIS_FRP';
 
     if (layers[mapId]) {
         // Remove the layer if it already exists
@@ -290,17 +290,17 @@ function updateLayerSelector(getlayer, whichlayer) {
     layerSelector.appendChild(layer);
 
     var layer2 = document.createElement('option');
-    layer2.value = "Mean_100hr"
-    layer2.textContent = "Mean"
+    layer2.value = "100hr_mean"
+    layer2.textContent = "mean"
     layerSelector.appendChild(layer2);
 
     var layer3 = document.createElement('option');
-    layer3.value = "Median_100hr"
-    layer3.textContent = "Median"
+    layer3.value = "100hr_median"
+    layer3.textContent = "median"
     layerSelector.appendChild(layer3);
 
     var layer4 = document.createElement('option');
-    layer4.value = "Outer_100hr"
+    layer4.value = "100hr_outer"
     layer4.textContent = "Outer"
     layerSelector.appendChild(layer4);
     }

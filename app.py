@@ -4,12 +4,10 @@ import requests
 import numpy as np
 import logging
 from datetime import datetime, timedelta
-import psycopg2
 import rasterio
 import os 
 import fiona
 from rasterio.mask import mask
-from psycopg2 import sql
 from shapely.geometry import box, mapping, shape
 import xarray as xr
 
@@ -27,14 +25,11 @@ def index():
     return render_template('nelson.html')
 
 
-
     
 # Define the path to your NetCDF files
 netcdf_files = {
-    'mean': os.path.expanduser('~/Nelson_Model/netcdf_data/files/100hr_mean.nc'),
-    'median': os.path.expanduser('~/Nelson_Model/netcdf_data/files/100hr_median.nc'),
-    'outer': os.path.expanduser('~/Nelson_Model/netcdf_data/files/100hr_outer.nc'),
-    'precipitation': os.path.expanduser('~/Nelson_Model/netcdf_data/files/precipitation.nc'),
+    '1hr': os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files/1hr_fm.nc'),
+    'precipitation': os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files/precip_2021.nc')
 }
 
 def get_nearest_point_data(netcdf_file, input_x, input_y):
@@ -52,13 +47,11 @@ def get_all_data():
     input_y = float(request.args.get('lat'))
 
     # Access data from the NetCDF files
-    mean_data = get_nearest_point_data(netcdf_files['mean'], input_x, input_y)
-    median_data = get_nearest_point_data(netcdf_files['median'], input_x, input_y)
-    outer_data = get_nearest_point_data(netcdf_files['outer'], input_x, input_y)
+    onehr_data = get_nearest_point_data(netcdf_files['1hr'], input_x, input_y)
     precip_data = get_nearest_point_data(netcdf_files['precipitation'], input_x, input_y)
 
     # Extract the times and values
-    times_ns = mean_data['time'].values  # Assuming time is a common dimension in nanoseconds
+    times_ns = onehr_data['time'].values  # Assuming time is a common dimension in nanoseconds
     times = [np.datetime_as_string(np.datetime64(time, 'ns'), unit='s') for time in times_ns]
 
     # Format times to match "YYYY-MM-DDTHH:00:00"
@@ -70,9 +63,9 @@ def get_all_data():
         hour = time_part.split(':')[0]
         formatted_times.append(f"{date_part}T{hour}:00:00")
 
-    mean_values = mean_data['fuel_moisture'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
-    median_values = median_data['fuel_moisture'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
-    outer_values = outer_data['fuel_moisture'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
+    mean_values = onehr_data['mean_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
+    median_values = onehr_data['median_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
+    outer_values = onehr_data['outer_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
     precip_values = precip_data['fuel_moisture'].values.tolist()  # Adjust 'precipitation' as per your variable name
 
     # Print the extracted data for debugging purposes
