@@ -24,12 +24,14 @@ def home():
 def index():
     return render_template('nelson.html')
 
-
+cdf_files_dir = os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files')
     
-# Define the path to your NetCDF files
+# Define the path to your NetCDF files relative to the base directory
 netcdf_files = {
-    '1hr': os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files/1hr_fm.nc'),
-    'precipitation': os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files/precip_2021.nc')
+    '1hr': os.path.join(cdf_files_dir, '1hr_fm.nc'),
+    '10hr': os.path.join(cdf_files_dir, '10hr_fm.nc'),
+    '100hr': os.path.join(cdf_files_dir, '100hr_fuelmoisture.nc'),
+    'precipitation': os.path.join(cdf_files_dir, 'precip_2021.nc')
 }
 
 def get_nearest_point_data(netcdf_file, input_x, input_y):
@@ -45,9 +47,11 @@ def get_nearest_point_data(netcdf_file, input_x, input_y):
 def get_all_data():
     input_x = float(request.args.get('lng'))
     input_y = float(request.args.get('lat'))
+    hour_type = request.args.get('hour')
+
 
     # Access data from the NetCDF files
-    onehr_data = get_nearest_point_data(netcdf_files['1hr'], input_x, input_y)
+    onehr_data = get_nearest_point_data(netcdf_files[hour_type], input_x, input_y)
     precip_data = get_nearest_point_data(netcdf_files['precipitation'], input_x, input_y)
 
     # Extract the times and values
