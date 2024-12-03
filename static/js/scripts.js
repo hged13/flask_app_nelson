@@ -159,7 +159,7 @@ function GetLayer(layerorder, mapname){
     var firstlayer = document.getElementById(layerorder).value;
     var timevalue = GetTimeValue(mapname);
     var index = dateToHourIndex(timevalue);
-    var granulestring = `Nelson__${firstlayer}_granule_${firstlayer}.${index}`;
+    var granulestring = `Nelson__${firstlayer}`;
     return granulestring;
     }
 
@@ -206,7 +206,6 @@ function loadGeoTIFF(url) {
         <div id="map${mapCount}" class="map"></div>
         <div class="map-legend" id="legend-map${mapCount}">
             <p>Legend</p>
-            <img src="" alt="Legend for map${mapCount}" class="legend-image">
         </div>
     `;
 
@@ -219,13 +218,32 @@ function loadGeoTIFF(url) {
             .then(response => response.arrayBuffer())
             .then(arrayBuffer => parseGeoraster(arrayBuffer))
             .then(georaster => {
+                const max = georaster.maxs[0];
+                const min = georaster.mins[0];
+                const noDataValue = georaster.noDataValue;
+
+                  // Create a color scale using chroma.js
                 const layer = new GeoRasterLayer({
                     georaster,
                     opacity: 0.7,
                     resolution: 64
+                   
                 });
                 layer.addTo(maps[`map${mapCount}`]);
                 maps[`map${mapCount}`].invalidateSize();
+                            /// Create a grayscale legend dynamically
+                const legend = document.createElement('div');
+                legend.className = 'legend';
+                legend.innerHTML = `
+                    <div class="label">
+                        <span>${max.toFixed(2)}</span>
+                    </div>
+                    <div class="gradient" style="background: linear-gradient(to bottom, black, white); height:150px; width:20%;"></div>
+                    <div class="label2">
+                        <span>${min.toFixed(2)}</span>
+                    </div>
+                `;
+                document.querySelector(`#legend-map${mapCount}`).appendChild(legend);
             })
             .catch(error => console.error('Error:', error));
     }
@@ -239,7 +257,13 @@ document.getElementById('generateRaster').addEventListener('click', () => {
     if(mapCount<4){
     var coverage1= GetLayer('FirstLayer', 'map0')
     var coverage2= GetLayer('SecondLayer', 'mapp')
-    fetch(`/process_raster?coverage1=${coverage1}&coverage2=${coverage2}`, {
+    var time1 = GetTimeValue('map0');
+    var time2 = GetTimeValue('mapp')
+    console.log(time1);
+    console.log(time2)
+
+
+    fetch(`/process_raster?coverage1=${coverage1}&coverage2=${coverage2}&time1=${time1}&time2=${time2}`, {
         method: 'POST',
     })
     .then(response => response.json())
@@ -291,19 +315,51 @@ function updateLayerSelector(getlayer, whichlayer) {
 
     var layer2 = document.createElement('option');
     layer2.value = "100hr_mean"
-    layer2.textContent = "mean"
+    layer2.textContent = "100hr mean"
     layerSelector.appendChild(layer2);
 
     var layer3 = document.createElement('option');
     layer3.value = "100hr_median"
-    layer3.textContent = "median"
+    layer3.textContent = "100hr median"
     layerSelector.appendChild(layer3);
 
     var layer4 = document.createElement('option');
     layer4.value = "100hr_outer"
-    layer4.textContent = "Outer"
+    layer4.textContent = "100hr Outer"
+    layerSelector.appendChild(layer4);
+
+    var layer2 = document.createElement('option');
+    layer2.value = "10hr_mean"
+    layer2.textContent = "10hr mean"
+    layerSelector.appendChild(layer2);
+
+    var layer3 = document.createElement('option');
+    layer3.value = "10hr_median"
+    layer3.textContent = "10hr median"
+    layerSelector.appendChild(layer3);
+
+    var layer4 = document.createElement('option');
+    layer4.value = "10hr_outer"
+    layer4.textContent = "10hr Outer"
+    layerSelector.appendChild(layer4);
+
+    var layer2 = document.createElement('option');
+    layer2.value = "1hr_mean"
+    layer2.textContent = "1hr mean"
+    layerSelector.appendChild(layer2);
+
+    var layer3 = document.createElement('option');
+    layer3.value = "1hr_median"
+    layer3.textContent = "1hr median"
+    layerSelector.appendChild(layer3);
+
+    var layer4 = document.createElement('option');
+    layer4.value = "1hr_outer"
+    layer4.textContent = "1hr Outer"
     layerSelector.appendChild(layer4);
     }
+    
+    
 
 
           
@@ -511,24 +567,18 @@ document.addEventListener('click', function(event) {
 // ScatterPlot Functionality
 //===================================
 
-// Assuming maps is an object with map instances, iterate over each map
-Object.keys(maps).forEach(mapId => {
-const map = maps[mapId];
+function setScatterplot(type,lat,lng,time) {
+const hour = type;
+console.log(type);
 
-// Event listener for map clicks to fetch data and display plots
-map.on('click', function(e) {
-var lat = e.latlng.lat;
-var lng = e.latlng.lng;
-var time = GetTimeValue(mapId); // Update this function call based on your requirement
-
-// Store the current x-range
+    // Store the current x-range
 var plotDiv = document.getElementById('plot');
 if (plotDiv && plotDiv.layout && plotDiv.layout.xaxis && plotDiv.layout.xaxis.range) {
     currentXRange = plotDiv.layout.xaxis.range;
 }
 
 // Fetch all data
-fetch(`/get_all_data?lat=${lat}&lng=${lng}`)
+fetch(`/get_all_data?lat=${lat}&lng=${lng}&hour=${hour}`)
     .then(response => response.json())
     .then(data => {
         if (data.error) {
@@ -611,6 +661,36 @@ fetch(`/get_all_data?lat=${lat}&lng=${lng}`)
     .catch(error => {
         console.error('Error fetching data:', error);
     });
+    // Add any additional logic you need here
+}
+
+// Assuming maps is an object with map instances, iterate over each map
+Object.keys(maps).forEach(mapId => {
+const map = maps[mapId];
+
+// Event listener for map clicks to fetch data and display plots
+map.on('click', function(e) {
+var lat = e.latlng.lat;
+var lng = e.latlng.lng;
+var time = GetTimeValue(mapId); // Update this function call based on your requirement
+
+
+// Create popup content with scatterplot options
+var popupContent = `
+    <div>
+        <p>What scatterplot would you like to display?</p>
+        <button onclick="setScatterplot('1hr', ${lat}, ${lng}, '${time}')">1 hr fm</button>
+        <button onclick="setScatterplot('10hr', ${lat}, ${lng}, '${time}')">10 hr fm</button>
+        <button onclick="setScatterplot('100hr', ${lat}, ${lng}, '${time}')">100 hr fm</button>
+    </div>
+`
+
+  // Show the popup on the map at the clicked location
+  L.popup()
+  .setLatLng(e.latlng)
+  .setContent(popupContent)
+  .openOn(map);
+
 });
 });
 

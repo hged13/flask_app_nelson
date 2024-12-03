@@ -83,85 +83,71 @@ def get_all_data():
     })
 
 
-def create_wps_payload(coverage_id_1, coverage_id_2):
-    return f'''<?xml version="1.0" encoding="UTF-8"?>
-<wps:Execute version="1.0.0" service="WPS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wps="http://www.opengis.net/wps/1.0.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <ows:Identifier>ras:Jiffle</ows:Identifier>
-  <wps:DataInputs>
-    <wps:Input>
-      <ows:Identifier>coverage</ows:Identifier>
-      <wps:Reference mimeType="image/tiff" xlink:href="http://localhost:8080/geoserver/ows" method="POST">
-        <wps:Body>
-          <![CDATA[
-          <wcs:GetCoverage service="WCS" version="2.0.1" xmlns:wcs="http://www.opengis.net/wcs/2.0">
-            <wcs:CoverageId>{coverage_id_1}</wcs:CoverageId>
-            <wcs:Format>image/tiff</wcs:Format>
-          </wcs:GetCoverage>
-          ]]>
-        </wps:Body>
-      </wps:Reference>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>coverage</ows:Identifier>
-      <wps:Reference mimeType="image/tiff" xlink:href="http://localhost:8080/geoserver/ows" method="POST">
-        <wps:Body>
-          <![CDATA[
-          <wcs:GetCoverage service="WCS" version="2.0.1" xmlns:wcs="http://www.opengis.net/wcs/2.0">
-            <wcs:CoverageId>{coverage_id_2}</wcs:CoverageId>
-            <wcs:Format>image/tiff</wcs:Format>
-          </wcs:GetCoverage>
-          ]]>
-        </wps:Body>
-      </wps:Reference>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>script</ows:Identifier>
-      <wps:Data>
-        <wps:LiteralData>if (src1[0] == -255 || src2[0] == -255 ) {{ 
+
+def create_wps_payload_cdfs(coverage_id_1, coverage_id_2, time1, time2):
+    return f'''<?xml version="1.0" encoding="UTF-8"?><wps:Execute version="1.0.0" service="WPS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.opengis.net/wps/1.0.0" xmlns:wfs="http://www.opengis.net/wfs" xmlns:wps="http://www.opengis.net/wps/1.0.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:gml="http://www.opengis.net/gml" xmlns:ogc="http://www.opengis.net/ogc" xmlns:wcs="http://www.opengis.net/wcs/1.1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsAll.xsd">
+<ows:Identifier>ras:Jiffle</ows:Identifier>
+<wps:DataInputs>
+  <wps:Input>
+    <ows:Identifier>coverage</ows:Identifier>
+    <wps:Reference mimeType="image/tiff" xlink:href="http://geoserver/wcs" method="POST">
+      <wps:Body>
+        <wcs:GetCoverage service="WCS" version="2.0.1"
+        xmlns:wcs="http://www.opengis.net/wcs/2.0"
+        xmlns:crs="http://www.opengis.net/spec/WCS_service-extension_crs/1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.opengis.net/wcs/2.0 http://schemas.opengis.net/wcs/2.0/wcsAll.xsd">
+          <wcs:CoverageId>{coverage_id_1}</wcs:CoverageId>
+          <wcs:DimensionTrim>
+            <wcs:Dimension>time</wcs:Dimension>
+            <wcs:TrimLow>{time1}</wcs:TrimLow>
+            <wcs:TrimHigh>{time1}</wcs:TrimHigh>
+          </wcs:DimensionTrim>
+        </wcs:GetCoverage>
+      </wps:Body>
+    </wps:Reference>
+  </wps:Input>
+   <wps:Input>
+    <ows:Identifier>coverage</ows:Identifier>
+    <wps:Reference mimeType="image/tiff" xlink:href="http://geoserver/wcs" method="POST">
+      <wps:Body>
+        <wcs:GetCoverage service="WCS" version="2.0.1"
+        xmlns:wcs="http://www.opengis.net/wcs/2.0"
+        xmlns:crs="http://www.opengis.net/spec/WCS_service-extension_crs/1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.opengis.net/wcs/2.0 http://schemas.opengis.net/wcs/2.0/wcsAll.xsd">
+          <wcs:CoverageId>{coverage_id_2}</wcs:CoverageId>
+          <wcs:DimensionTrim>
+            <wcs:Dimension>time</wcs:Dimension>
+            <wcs:TrimLow>{time2}</wcs:TrimLow>
+            <wcs:TrimHigh>{time2}</wcs:TrimHigh>
+          </wcs:DimensionTrim>
+        </wcs:GetCoverage>
+      </wps:Body>
+    </wps:Reference>
+  </wps:Input>
+  <wps:Input>
+    <ows:Identifier>script</ows:Identifier>
+    <wps:Data>
+      <wps:LiteralData>if (src[0] == -255 || src1[0] == -255 ) {{ 
             dest = -255; 
         }} else {{ 
-            band1 = src1[0]; 
-            band2 = src2[0]; 
-            dest = band1-band2;
+            dest = src[0]-src1[0];
         }}</wps:LiteralData>
-      </wps:Data>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>sourceName</ows:Identifier>
-      <wps:Data>
-        <wps:LiteralData>src1</wps:LiteralData>
-      </wps:Data>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>sourceName</ows:Identifier>
-      <wps:Data>
-        <wps:LiteralData>src2</wps:LiteralData>
-      </wps:Data>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>outputType</ows:Identifier>
-      <wps:Data>
-        <wps:LiteralData>DOUBLE</wps:LiteralData>
-      </wps:Data>
-    </wps:Input>
-    <wps:Input>
-      <ows:Identifier>bandCount</ows:Identifier>
-      <wps:Data>
-        <wps:LiteralData>1</wps:LiteralData>
-      </wps:Data>
-    </wps:Input>
-  </wps:DataInputs>
-  <wps:ResponseForm>
-    <wps:RawDataOutput mimeType="image/tiff">
-      <ows:Identifier>result</ows:Identifier>
-    </wps:RawDataOutput>
-  </wps:ResponseForm>
+    </wps:Data>
+  </wps:Input>
+</wps:DataInputs>
+<wps:ResponseForm>
+  <wps:RawDataOutput mimeType="image/tiff">
+    <ows:Identifier>result</ows:Identifier>
+  </wps:RawDataOutput>
+</wps:ResponseForm>
 </wps:Execute>'''
 
-def send_wps_request(coverage_id_1, coverage_id_2):
+def send_wps_request(coverage_id_1, coverage_id_2, time1, time2):
     url = "http://localhost:8080/geoserver/ows"
     headers = {'Content-Type': 'text/xml'}
-    data = create_wps_payload(coverage_id_1, coverage_id_2)
+    data = create_wps_payload_cdfs(coverage_id_1, coverage_id_2, time1, time2)
     
     response = requests.post(url, headers=headers, data=data)
     
@@ -171,6 +157,7 @@ def send_wps_request(coverage_id_1, coverage_id_2):
     
     print("WPS request succeeded")
     return response.content
+
 
 def clip_raster_with_shapefile(raster_data, shapefile_path, output_filepath):
     with fiona.open(shapefile_path, "r") as shapefile:
@@ -194,34 +181,70 @@ def clip_raster_with_shapefile(raster_data, shapefile_path, output_filepath):
 
 @app.route('/process_raster', methods=['POST'])
 def process_raster():
+    import os
+    from flask import jsonify, request, url_for
+
     coverage_id_1 = request.args.get('coverage1')
     coverage_id_2 = request.args.get('coverage2')
+
+    time1 = request.args.get('time1')
+    time2 = request.args.get('time2')
     
     print("Processing raster with the following coverages:")
     print(f"Coverage 1: {coverage_id_1}")
     print(f"Coverage 2: {coverage_id_2}")
 
     # Send WPS request and get the result
-    result_raster_data = send_wps_request(coverage_id_1, coverage_id_2)
-    
+    result_raster_data = send_wps_request(coverage_id_1, coverage_id_2, time1, time2)
+    print(result_raster_data.decode(errors='replace'))
     if result_raster_data is None:
+        print("WPS request failed: No data received.")
         return jsonify({'error': 'WPS request failed'}), 500
 
-    result_filepath = "result.tiff"
-    with open(result_filepath, "wb") as f:
-        f.write(result_raster_data)
+    print(f"Size of received raster data: {len(result_raster_data)} bytes")
+    if len(result_raster_data) < 100:
+        print("Warning: Received raster data is unusually small. Check WPS response.")
+        print("Preview of data:", result_raster_data[:100])
 
-    # Clip the raster
+    # Write the raster data to a file
+    result_filepath = "result.tiff"
+    try:
+        with open(result_filepath, "wb") as f:
+            f.write(result_raster_data)
+        print(f"Raster data written to file: {result_filepath}")
+    except Exception as e:
+        print(f"Error writing raster data to file: {e}")
+        return jsonify({'error': 'Failed to write raster data to file'}), 500
+
+    # Verify the file format and metadata using gdalinfo (or equivalent library in Python)
+    print("Verifying raster file with GDAL...")
+    try:
+        import subprocess
+        gdalinfo_output = subprocess.check_output(["gdalinfo", result_filepath], text=True)
+        print("GDAL Info Output:")
+        print(gdalinfo_output)
+    except FileNotFoundError:
+        print("GDAL is not installed or not found in the system path.")
+    except Exception as e:
+        print(f"Error verifying raster with GDAL: {e}")
+
+    # Clip the raster (if applicable)
     shapefile_path = "./Northern Rockies..shp"
     output_clipped_filepath = os.path.join(app.config['UPLOAD_FOLDER'], "clipped_result.tiff")
     
-    clip_raster_with_shapefile(result_filepath, shapefile_path, output_clipped_filepath)
+    try:
+        clip_raster_with_shapefile(result_filepath, shapefile_path, output_clipped_filepath)
+        print(f"Raster clipped successfully. Output file: {output_clipped_filepath}")
+    except Exception as e:
+        print(f"Error clipping raster with shapefile: {e}")
+        return jsonify({'error': 'Failed to clip raster with shapefile'}), 500
 
     # Return the URL for the clipped file
     file_url = url_for('static', filename='clipped_result.tiff', _external=True)
     print(f"Returning file URL: {file_url}")
     
     return jsonify({'url': file_url})
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=8081 )
