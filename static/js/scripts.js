@@ -20,6 +20,8 @@ populateHours('map0');
 populateHours('mapp');
 updateLayerSelector('FirstLayer', FirstLayer);
 updateLayerSelector('SecondLayer', SecondLayer);
+populateHours('map');
+
 
 
 //===================================
@@ -513,7 +515,8 @@ document.addEventListener('click', function(event) {
 // Sync dates across all maps when the "Sync Dates" button is clicked
 document.getElementById('sync-dates').addEventListener('click', () => {
     const globalDate = document.getElementById('date-picker').value;
-    const globalHour = '00'; // Default to the start of the day for simplicity
+    const globalHour = document.querySelector(`.map-hour-selector[data-map-id="map"]`).value;
+
 
     for (const mapId in maps) {
         // Update each map's date picker and hour selector
@@ -726,6 +729,18 @@ document.getElementById('close-button').addEventListener('click', function() {
         document.getElementById('plot-container').style.display = 'none';
 
 });
+
+
+
+
+
+
+
+
+
+
+         
+
 
 
 
