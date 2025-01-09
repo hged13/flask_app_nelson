@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, url_for, render_template
 import requests
 import numpy as np
@@ -24,14 +23,14 @@ def home():
 def index():
     return render_template('nelson.html')
 
-cdf_files_dir = os.path.expanduser('/home/hannah/FireLab/geoserver-2.26.0-bin/data_dir/cdf_files')
+cdf_files_dir = os.path.expanduser('~/Nelson_Model/geoserver_new/geoserver/data_dir/cdf_files')
     
 # Define the path to your NetCDF files relative to the base directory
 netcdf_files = {
     '1hr': os.path.join(cdf_files_dir, '1hr_fm.nc'),
     '10hr': os.path.join(cdf_files_dir, '10hr_fm.nc'),
     '100hr': os.path.join(cdf_files_dir, '100hr_fuelmoisture.nc'),
-    'precipitation': os.path.join(cdf_files_dir, 'precip_2021.nc')
+    'precipitation': os.path.join(cdf_files_dir, 'precipitation_nans_repro.nc')
 }
 
 def get_nearest_point_data(netcdf_file, input_x, input_y):
@@ -42,6 +41,48 @@ def get_nearest_point_data(netcdf_file, input_x, input_y):
     nearest_data = ds.sel(x=input_x, y=input_y, method='nearest')
     
     return nearest_data
+
+
+
+@app.route('/get_metadata', methods=['GET'])
+def get_metadata():
+
+  netcdf_file_path = netcdf_files['precipitation']
+
+  # Get the time index from the request
+  time_index = request.args.get('time', type=int)
+  if time_index is None:
+      return jsonify({"error": "Time index is required"}), 400
+
+  try:
+      # Open the NetCDF file
+      ds = xr.open_dataset(netcdf_file_path)
+
+      # Ensure time index is within bounds
+      if time_index < 0 or time_index >= len(ds["time"]):
+          return jsonify({"error": f"Time index {time_index} is out of bounds"}), 400
+
+      # Extract the specific time slice for the variable
+      variable = "fuel_moisture"  # Replace with your variable name
+      data_slice = ds[variable].isel(time=time_index)
+
+      
+      max_value = float(data_slice.max().values)
+      
+
+      # Return the metadata as JSON
+      return jsonify({
+          
+          "max": max_value,
+          
+      })
+
+  except FileNotFoundError:
+      return jsonify({"error": "NetCDF file not found"}), 500
+  except Exception as e:
+      return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/get_all_data')
 def get_all_data():
@@ -70,7 +111,7 @@ def get_all_data():
     mean_values = onehr_data['mean_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
     median_values = onehr_data['median_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
     outer_values = onehr_data['outer_fm'].values.tolist()  # Adjust 'fuel_moisture' as per your variable name
-    precip_values = precip_data['fuel_moisture'].values.tolist()  # Adjust 'precipitation' as per your variable name
+    precip_values = precip_values = [None if np.isnan(x) else x for x in precip_data['fuel_moisture'].values.tolist()]  # Adjust 'precipitation' as per your variable name
 
     # Print the extracted data for debugging purposes
     print("Formatted Times:", formatted_times)
@@ -149,7 +190,7 @@ def create_wps_payload_cdfs(coverage_id_1, coverage_id_2, time1, time2):
 </wps:Execute>'''
 
 def send_wps_request(coverage_id_1, coverage_id_2, time1, time2):
-    url = "http://localhost:8080/geoserver/ows"
+    url = "http://greynathan-Precision-7920-Tower:8080/geoserver/ows"
     headers = {'Content-Type': 'text/xml'}
     data = create_wps_payload_cdfs(coverage_id_1, coverage_id_2, time1, time2)
     
@@ -251,5 +292,6 @@ def process_raster():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8081 )
+    app.run(debug=True, port=8081, host="0.0.0.0" )
+
 

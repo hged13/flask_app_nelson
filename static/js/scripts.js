@@ -12,7 +12,7 @@ const modisLayers = {};
 
 // Initialize first map
 maps['map1'] = initializeMap('map1');
-if (maps['map1']) addLayer(maps['map1'], 'Precipitation', '2021-04-01T00:00:00.000Z'); // Default initial layer
+if (maps['map1']) addLayer(maps['map1'], 'Precipitation', '2021-04-01T01:00:00.000Z'); // Default initial layer
 
 //Populate hours for the initial map
 populateHours('map1');
@@ -20,6 +20,8 @@ populateHours('map0');
 populateHours('mapp');
 updateLayerSelector('FirstLayer', FirstLayer);
 updateLayerSelector('SecondLayer', SecondLayer);
+populateHours('map');
+
 
 
 //===================================
@@ -38,10 +40,38 @@ function initializeMap(mapId, lat = 46.965260, lng = -109.533691, zoom = 6) {
 
 
 // Function to dynamically add layers based on user selections
-function addLayer(map, layerType, date) {
+async function addLayer(map, layerType, date) {
+    var min=0;
+    var max=1;
     var layerName;
+    var index = dateToHourIndex(date);
+
     if (layerType === 'Precipitation') {
-        layerName = 'Nelson:Precipitation'; // No hour type for precipitation
+        layerName = 'Nelson:Precipitation2'; // No hour type for precipitation
+
+        try {
+            // Fetch metadata and wait for the response
+            const response = await fetch(`/get_metadata?time=${index}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            // Parse the JSON response
+            const data = await response.json();
+
+            // Extract max from the response
+            if (data.max!=0){
+            max = data.max;}
+            else{
+                console.log("bummer")
+            }
+            
+
+            // Log min and max for debugging
+            console.log(`Time Index: ${index}, Min: ${min}, Max: ${max}`);
+        } catch (error) {
+            console.error('Error fetching metadata:', error);
+        }
     } 
     else if (layerType === 'ViirsData') {
     layerName = 'Nelson:VIIRS_FRP'; // Set the correct name for the GeoServer image mosaic
@@ -50,19 +80,21 @@ function addLayer(map, layerType, date) {
         // Construct layer name with hour type for other layers
         layerName = `Nelson:${document.querySelector(`.map-hour-type[data-map-id="${map._container.id}"]`).value}hr_${layerType}`;
     }
+    console.log(max)
     var wmsOptions = {
         format: 'image/png',
         transparent: true,
         version: '1.1.1',
         maxZoom: 100,
         time: date,
-        attribution: "GeoServer"
+        attribution: "GeoServer",
+        COLORSCALERANGE: `${min},${max}`
     };
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18,}).addTo(map);
-    var layer = L.tileLayer.wms("http://localhost:8080/geoserver/wms", {...wmsOptions, layers: layerName});
+    var layer = L.tileLayer.wms("http://greynathan-Precision-7920-Tower:8080/geoserver/wms", {...wmsOptions, layers: layerName});
     layer.addTo(map);
     map.invalidateSize();
-    updateLegend(map._container.id, layerName); // Update legend
+    updateLegend(map._container.id, layerName, min, max, layerType); // Update legend
 }
 
 
@@ -88,7 +120,7 @@ function toggleOverlay(mapId, layerType) {
         const dateTime = `${selectedDay}T${hour}:00:00.000Z`;
 
         // Add the overlay
-        const overlayLayer = L.tileLayer.wms("http://localhost:8080/geoserver/wms", {
+        const overlayLayer = L.tileLayer.wms("http://greynathan-Precision-7920-Tower:8080/geoserver/wms", {
             layers: layerName, // Use the correct layer name based on the type
             format: 'image/png',
             transparent: true,
@@ -108,10 +140,49 @@ function toggleOverlay(mapId, layerType) {
 
 
 // Function to update the legend image source based on the layer
-function updateLegend(mapId, layerName) {
+function updateLegend(mapId, layerName, min, max, layerType) {
+    var legendUrl;
+    if (layerType=="Precipitation"){
+       legendUrl = `http://greynathan-Precision-7920-Tower:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=${layerName}&COLORSCALERANGE=${min},${max}&WIDTH=20&HEIGHT=5&LEGEND_OPTIONS=forceLabels:on`;
+
+    }
+    else{
+
+        legendUrl = `http://greynathan-Precision-7920-Tower:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=${layerName}`;
+    }
     const legendImage = document.querySelector(`#legend-${mapId} .legend-image`);
-    const legendUrl = `http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=${layerName}`;
+    // Select the legend container
+    const legendContainer = legendImage.parentElement;
+
+    // Remove existing labels if they exist
+    const existingMinLabel = legendContainer.querySelector('.legend-min');
+    const existingMaxLabel = legendContainer.querySelector('.legend-max');
+    if (existingMinLabel) existingMinLabel.remove();
+    if (existingMaxLabel) existingMaxLabel.remove();
+    
     legendImage.src = legendUrl;
+    if (layerType === "Precipitation") {
+        // Limit max to 3 decimal places
+        const maxRounded = parseFloat(max).toFixed(3);
+
+        // Create new "Min" and "Max" labels
+        const minLabel = document.createElement('span');
+        minLabel.textContent = `${min} mm`;
+        minLabel.classList.add('legend-min');
+        minLabel.style.display = 'block'; // Ensures the text appears above the image
+        minLabel.style.textAlign = 'center';
+    
+        const maxLabel = document.createElement('span');
+        maxLabel.textContent = `${maxRounded} mm`;
+        maxLabel.classList.add('legend-max');
+        maxLabel.style.display = 'block'; // Ensures the text appears below the image
+        maxLabel.style.textAlign = 'center';
+    
+        // Insert the labels around the image
+        legendContainer.insertBefore(minLabel, legendImage); // Add "Min" above the image
+        legendContainer.appendChild(maxLabel);              // Add "Max" below the image
+    }
+    
 }
 
 
@@ -165,28 +236,26 @@ function GetLayer(layerorder, mapname){
 
 
 function dateToHourIndex(dateString) {
-    // Define the starting date
-    const startDate1 = new Date(Date.UTC(2021, 3, 1, 0, 0, 0));
+    // Define the starting date (April 1, 2021, 00:00:00 UTC)
+    const startDate = new Date(Date.UTC(2021, 3, 1, 0, 0, 0)); // Note: Month is 0-based
 
-    const startDate = '2021-04-01T00:00:00.000Z';
-    const startYear = 2021;
-    const startMonth = 4;
-    const startDay = 1;
-    const startHour =0;
-
-    // Extract the date and time components from the input date string
+    // Parse the input date string
     const year = parseInt(dateString.substring(0, 4), 10);
-    const month = parseInt(dateString.substring(5, 7), 10);
-    // Months are 0-indexed in JavaScript
+    const month = parseInt(dateString.substring(5, 7), 10); // 1-based month
     const day = parseInt(dateString.substring(8, 10), 10);
-    const hour = parseInt(dateString.substring(12, 13), 10);
-    const inputDate = new Date(Date.UTC(year, (month-1), day, hour, 0, 0));
+    const hour = parseInt(dateString.substring(11, 13), 10); // Corrected substring for hours
+
+    // Create a Date object for the input date
+    const inputDate = new Date(Date.UTC(year, month - 1, day, hour, 0, 0)); // Month is 0-based
+
     // Calculate the difference in milliseconds
-    const diffMs = inputDate - startDate1;
+    const diffMs = inputDate - startDate;
+
     // Convert the difference from milliseconds to hours
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    // Return the hour index (starting from 1)
-    return diffHours + 1;
+
+    // Return the hour index
+    return diffHours;
 }
 
 
@@ -443,10 +512,17 @@ document.getElementById('add-map').addEventListener('click', () => {
             element.setAttribute('data-map-id', `map${mapCount}`);
         });
 
+            // **SYNC VALUES** with global controls
+        mapControls.querySelector('.map-data-type').value = document.getElementById('data-type').value;
+        mapControls.querySelector('.map-hour-type').value = document.getElementById('hour-type').value;
+        mapControls.querySelector('.map-date-picker').value = document.getElementById('date-picker').value;
+        const globalHour = document.querySelector(`.map-hour-selector[data-map-id="map"]`).value;
+
+        mapControls.querySelector(`.map-hour-selector[data-map-id="map${mapCount}"]`).value = document.querySelector(`.map-hour-selector[data-map-id="map"]`).value;
         // Set unique ID for the map and legend
         const map = newMapDiv.querySelector('.map');
         map.id = `map${mapCount}`;
-        
+    
         const legend = newMapDiv.querySelector('.map-legend');
         legend.id = `legend-map${mapCount}`;
         legend.querySelector('img').setAttribute('alt', `Legend for map${mapCount}`);
@@ -457,13 +533,18 @@ document.getElementById('add-map').addEventListener('click', () => {
         // Initialize the new map with default settings
         maps[`map${mapCount}`] = initializeMap(`map${mapCount}`);
         if (maps[`map${mapCount}`]) {
-            const date = document.getElementById('date-picker').value ? `${document.getElementById('date-picker').value}T00:00:00.000Z` : '2021-04-01T00:00:00.000Z';
+              // Get the date value from the map
+            const date = document.getElementById('date-picker').value ? `${document.getElementById('date-picker').value}T${globalHour}:00:00.000Z` : '2021-04-01T00:00:00.000Z';
             const layerType = document.getElementById('data-type').value;
             addLayer(maps[`map${mapCount}`], layerType, date);
             maps[`map${mapCount}`].invalidateSize(); // Force Leaflet to recalculate the size
             populateHours(`map${mapCount}`);
         }
-
+        const mapId = map.id;
+        const dataType = document.querySelector(`.map-data-type[data-map-id="${mapId}"]`).value;
+        const hourSelector = document.querySelector(`.map-hour-selector[data-map-id="${mapId}"]`);
+        hourSelector.value = globalHour;
+        console.log(mapId);
         updateLayout(); // Update layout to accommodate the new map
     } else {
         console.log('Maximum of 4 maps reached.');
@@ -487,6 +568,9 @@ document.addEventListener('click', function(event) {
         const date = document.querySelector(`.map-date-picker[data-map-id="${mapId}"]`).value 
         ? `${document.querySelector(`.map-date-picker[data-map-id="${mapId}"]`).value}T${hour}:00:00.000Z` // Incorporate the hour into the date string
         : '2021-04-01T00:00:00.000Z';
+
+        console.log(`Date: ${date}`)
+        console.log(dateTime)
 
         // Clear existing layers and add the new layer
         maps[mapId].eachLayer(layer => maps[mapId].removeLayer(layer));
@@ -513,7 +597,8 @@ document.addEventListener('click', function(event) {
 // Sync dates across all maps when the "Sync Dates" button is clicked
 document.getElementById('sync-dates').addEventListener('click', () => {
     const globalDate = document.getElementById('date-picker').value;
-    const globalHour = '00'; // Default to the start of the day for simplicity
+    const globalHour = document.querySelector(`.map-hour-selector[data-map-id="map"]`).value;
+
 
     for (const mapId in maps) {
         // Update each map's date picker and hour selector
@@ -636,10 +721,11 @@ fetch(`/get_all_data?lat=${lat}&lng=${lng}&hour=${hour}`)
         };
 
         // Combine all traces
-        var timeseriesData = [ outerData, meanData, medianData]; //precipData (add this if want precip included)
+        var timeseriesData = [ outerData, meanData, medianData, precipData]; //precipData (add this if want precip included)
 
         // Calculate the global maximum y-value
         globalMaxY = Math.max(
+
             ...precip_values,
             ...outer_values,
             ...mean_values,
@@ -735,6 +821,4 @@ document.getElementById('close-button').addEventListener('click', function() {
 
 
 
-
-         
 

@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/georaster"></script>
     <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> <!-- Add Plotly.js -->
-    
 
     <style>
         body {
@@ -18,12 +17,18 @@
             height: 100vh;
         }
 
-        #controls {
-            padding: 10px;
-            background-color: #f4f4f9;
+        #top-container {
             display: flex;
-            justify-content: center;
-            gap: 10px;
+            gap: 75px; /* Space between controls */
+            background-color: #d3d3d3; /* Slightly darker background */
+            padding: 10px; /* Optional padding */
+            
+        #controls-container2, #controls, #title {
+            flex-wrap: wrap; /* Adjusts the items if they don’t fit */
+            gap: 10px; /* Space between elements inside each container */
+            position: relative; /* Enable relative positioning */
+            left: 80px; /* Shift everything in the container 300px to the left */
+        }
         }
 
         #map-container {
@@ -88,102 +93,169 @@
             grid-template-rows: 1fr 1fr;
         }
 
-        
+          /* Tooltip styles */
+          .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 350px;
+            background-color: black;
+            color: #fff;
+            text-align: left;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 9999;
+            bottom: auto; /* Position above the element */
+            top: 125%; /* Position below the element */
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9rem; /* Adjust the font size as needed */
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
-    <!-- Global Control Panel -->
-    <div id="controls">
-        <select id="data-type">
-            <option value="mean">mean</option>
-            <option value="median">median</option>
-            <option value="outer">outer</option>
-            <option value="Precipitation">Precipitation</option>
-        </select>
-        <select id="hour-type">
-            <option value="1">1 Hour</option>
-            <option value="10">10 Hours</option>
-            <option value="100">100 Hours</option>
-        </select>
-        <input type="date" id="date-picker" min="2021-04-01" max="2021-09-30" value="2021-04-01">
-        <button id="add-map">Add Map</button>
-        <button id="sync-dates">Sync Dates</button>
-    </div>
-    
-    <!-- This is the raster generation control panel -->
+    <!-- Top Container for Controls -->
+    <div id="top-container">
+        <!-- Global Control Panel -->
+        <div id="controls">
+            <select id="data-type">
+                <option value="Precipitation">Precipitation</option>
+                <option value="mean">mean</option>
+                <option value="median">median</option>
+                <option value="outer">outer</option>
+            </select>
+            <select id="hour-type">
+                <option value="1">1 Hour</option>
+                <option value="10">10 Hours</option>
+                <option value="100">100 Hours</option>
+            </select>
+            <input type="date" id="date-picker" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+            <select class="map-hour-selector" data-map-id="map">
+                <!-- Hours will be populated dynamically -->
+            </select>
+            <button id="add-map">Add Map</button>
+            <button id="sync-dates">Sync Dates</button>
+            <div class="tooltip">
+                ℹ
+                <span class="tooltip-text">Use 'Add Map' to add an additional map to the screen with the selected parameters.<br> <br>
+                    Use 'Sync Dates' to sync all current maps to the selected date/time. 
+                    
+                                           
+                   
+                </span>
+                <span class="tooltip-text">               
 
-    <div id="controls-container2">
+                   
+                </span>
+            </div>
+        </div>
+
+                <!-- Title -->
+        <div id="title" class="title" style="text-align: center; font-size: 1.2rem; font-weight: bold; color: #2c4850; font-family: 'Arial', sans-serif; margin: 20px 0;">
+            2021 Nelson Model Data Viewer
+            <div class="tooltip" style="display: inline-block; position: relative; cursor: pointer; margin-left: 10px; color: #007BFF; font-size: 1.2rem;">
+                ℹ
+                <span class="tooltip-text">
+                    This viewer provides visualization of precipitation data and fuel moisture levels from April to October 2021. <br><br>
+                    Fuel moisture layers are available for three different metrics derived from the Nelson model: mean, median, and outer shell. <br><br>
+                    Each metric can be explored across various fuel size classes: 1-hour, 10-hour, and 100-hour fuels.<br><br>
+
+                    Use this tool to: <br><br>
+
+                        *Add and compare raster layers.<br>
+                        *Generate timeseries.<br>
+                        *Generate difference rasters.<br>
+                        *Apply additional data overlays.
+                </span>
+            </div>
+        </div>
+        <!-- Raster Generation Control Panel -->
+        <div id="controls-container2">
+            <div class="tooltip">
+                ℹ
+                <span class="tooltip-text">Use 'Generate Raster' to display a raster showing the difference between the left and right layers (Layer 1 - Layer 2).<br>
+                   <br> Specify the layer type, date, and hour for each. </span>
+            </div>
+            <button id="generateRaster">Generate Raster</button>
+            <select id="FirstLayer"></select>
+            <input type="date" class="map-date-picker" data-map-id="map0" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+            <select class="map-hour-selector" data-map-id="map0">
+                <!-- Hours will be populated dynamically -->
+            </select>
+            <select id="SecondLayer"></select>
+            <input type="date" class="map-date-picker" data-map-id="mapp" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+            <select class="map-hour-selector" data-map-id="mapp">
+                <!-- Hours will be populated dynamically -->
+            </select>
             
-        <button id="generateRaster">GenerateRaster</button>
-        <select id="FirstLayer"></select>
-        <input type="date" class="map-date-picker" data-map-id="map0" min="2021-04-01" max="2021-09-30" value="2021-04-01">
-                <select class="map-hour-selector" data-map-id="map0">
-                    <!-- Hours will be populated dynamically -->
-                </select>
-        <select id="SecondLayer"></select>
-        <input type="date" class="map-date-picker" data-map-id="mapp" min="2021-04-01" max="2021-09-30" value="2021-04-01">
-                <select class="map-hour-selector" data-map-id="mapp">
-                    <!-- Hours will be populated dynamically -->
-                </select>
-
-        
+        </div>
     </div>
 
-     <!-- Plot Container for timeseries data  
-      This does not appear until a point on map is clicked-->
-     <div id="plot-container" style="display:none;" >
+    <!-- Plot Container for timeseries data -->
+    <div id="plot-container" style="display:none;">
         <button id="close-button">Close</button>
         <div id="plot"></div>
         <button id="adjust-y-axis">Adjust Y-Axis</button> <!-- New button to adjust y-axis -->
         <button id="reset-y-axis">Reset Y-Axis</button> <!-- New button to reset y-axis -->
     </div>
 
-    <!-- Place this template inside your HTML file -->
-<template id="map-template">
-    <div class="map-wrapper">
-        <div class="map-controls">
-            <select class="map-data-type" data-map-id="">
-                <option value="mean">mean</option>
-                <option value="median">median</option>
-                <option value="outer">outer</option>
-                <option value="Precipitation">Precipitation</option>
-            </select>
-            <select class="map-hour-type" data-map-id="">
-                <option value="1">1 Hour</option>
-                <option value="10">10 Hours</option>
-                <option value="100">100 Hours</option>
-            </select>
-            <input type="date" class="map-date-picker" data-map-id="" min="2021-04-01" max="2021-09-30" value="2021-04-01">
-            <select class="map-hour-selector" data-map-id="">
-                <!-- Hours will be populated dynamically -->
-            </select>
-            <button class="prev-hour" data-map-id="">Previous Hour</button>
-            <button class="next-hour" data-map-id="">Next Hour</button>
-            <button class="update-map" data-map-id="">Update Map</button>
-            <button class="delete-map" data-map-id="">Delete Map</button>
-            <button class="viirs-overlay" data-map-id="">VIIRS</button>
-            <button class="modis-overlay" data-map-id="">MODIS</button>
-            <button class="fire-perimeters" data-map-id="">Fire Perimeters</button>
-
+    <!-- Template for Maps -->
+    <template id="map-template">
+        <div class="map-wrapper">
+            <div class="map-controls">
+                <select class="map-data-type" data-map-id="">
+                    <option value="Precipitation">Precipitation</option>
+                    <option value="mean">mean</option>
+                    <option value="median">median</option>
+                    <option value="outer">outer</option>
+                </select>
+                <select class="map-hour-type" data-map-id="">
+                    <option value="1">1 Hour</option>
+                    <option value="10">10 Hours</option>
+                    <option value="100">100 Hours</option>
+                </select>
+                <input type="date" class="map-date-picker" data-map-id="" min="2021-04-01" max="2021-09-30" value="2021-04-01">
+                <select class="map-hour-selector" data-map-id="">
+                    <!-- Hours will be populated dynamically -->
+                </select>
+                <button class="prev-hour" data-map-id="">Previous Hour</button>
+                <button class="next-hour" data-map-id="">Next Hour</button>
+                <button class="update-map" data-map-id="">Update Map</button>
+                <button class="delete-map" data-map-id="">Delete Map</button>
+                <button class="viirs-overlay" data-map-id="">VIIRS</button>
+                <button class="modis-overlay" data-map-id="">MODIS</button>
+                
+                <!--<button class="fire-perimeters" data-map-id="">Fire Perimeters</button> -->
+            </div>
+            <div class="map" data-map-id=""></div>
+            <div class="map-legend">
+                <p>Legend</p>
+                <img src="" alt="Legend" class="legend-image">
+            </div>
         </div>
-        <div class="map" data-map-id=""></div>
-        <div class="map-legend">
-            <p>Legend</p>
-            <img src="" alt="Legend" class="legend-image">
-        </div>
-    </div>
-</template>
-
+    </template>
 
     <!-- Individual Map Container -->
     <div id="map-container" class="one-map">
         <div class="map-wrapper" id="map-wrapper-1">
             <div class="map-controls" id="controls-map1">
                 <select class="map-data-type" data-map-id="map1">
+                    <option value="Precipitation">Precipitation</option>
                     <option value="mean">mean</option>
                     <option value="median">median</option>
                     <option value="outer">outer</option>
-                    <option value="Precipitation">Precipitation</option>
                 </select>
                 <select class="map-hour-type" data-map-id="map1">
                     <option value="1">1 Hour</option>
@@ -197,16 +269,19 @@
                 <button class="prev-hour" data-map-id="map1">Previous Hour</button>
                 <button class="next-hour" data-map-id="map1">Next Hour</button>
                 <button class="update-map" data-map-id="map1">Update Map</button>
-                <button class="toggle-viirs-overlay" data-map-id="map1"> VIIRS</button> 
-                <button class="toggle-modis-overlay" data-map-id="map1"> MODIS</button> 
-                <button class="toggle-fire-perimeters" data-map-id="map1">Fire Perimeters</button>
-
-
-
+                <button class="toggle-viirs-overlay" data-map-id="map1"> VIIRS</button>
+                <button class="toggle-modis-overlay" data-map-id="map1"> MODIS</button>
+                <div class="tooltip">
+                    ℹ
+                    <span class="tooltip-text">Individual map controls.<br>  <br> Adjust parameters and update the individual map with 'Update Map'. <br> <br> Add and remove VIIRS or MODIS FRP overlay layers. <br><br>
+                    Click anywhere on the top-leftmost map to generate a timeseries of data for that point. </span>
+                </div>
+                <!--<button class="toggle-fire-perimeters" data-map-id="map1">Fire Perimeters</button>-->
             </div>
             <div id="map1" class="map"></div> <!-- Default map -->
             <div class="map-legend" id="legend-map1">
-                <p>Legend</p>
+                <p>Legend </p>
+                <p style="font-size: 11.5px;">transparent=nodata</p>
                 <img src="" alt="Legend for map1" class="legend-image">
             </div>
         </div>
@@ -214,3 +289,4 @@
     <script src="../static/js/scripts.js"></script>
 </body>
 </html>
+
