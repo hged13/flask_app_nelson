@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map with Synoptic Stations</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Weather Stations</h1>
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([39.8283, -98.5795], 4); // Centered in the US
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Create a marker cluster group
+        var markers = L.markerClusterGroup();
+
+        // Stations data from Flask
+        var stations = {{ stations|tojson }};
+
+        stations.forEach(function(station) {
+            if (station.LATITUDE && station.LONGITUDE) {
+                // Create the marker
+                var marker = L.marker([station.LATITUDE, station.LONGITUDE]);
+
+                // Add a click event listener to the marker
+                marker.on('click', function() {
+                    // Make an AJAX request to get the current RAWS readings
+                    fetch(`/get_station_info?station_id=${station.STID}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert('Error: ' + data.error);
+                            } else {
+                                // Construct the popup content with the returned data
+                                var popupContent = `<b>${data.name}</b><br>
+                                                    Elevation: <b>${data.elevation || 'N/A'}</b><br>
+                                                    Latitude: <b>${data.latitude}</b><br>
+                                                    Longitude: <b>${data.longitude}</b><br>
+                                                    Status: <b>${data.status || 'N/A'}</b><br><br>
+                                                    <b>Current Readings:</b><br>`;
+
+                                // Add readings to the popup content
+                                for (var key in data.readings) {
+                                    if (data.readings.hasOwnProperty(key)) {
+                                        popupContent += `${key}: <b>${data.readings[key]}</b><br>`;
+                                    }
+                                }
+
+                                marker.bindPopup(popupContent).openPopup();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching station info:', error);
+                            alert('An error occurred while fetching station information.');
+                        });
+                });
+
+                // Add the marker to the cluster group
+                markers.addLayer(marker);
+            }
+        });
+
+        // Add the marker cluster group to the map
+        map.addLayer(markers);
+    </script>
+</body>
+</html>
